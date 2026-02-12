@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /a /b \"C:\\\\Users\\\\Danny\\\\source\\\\repos\\\\TorchSharpNetworkReference\")",
+      "WebFetch(domain:github.com)",
+      "Bash(test:*)",
+      "Bash(dotnet --version:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet build:*)",
+      "WebFetch(domain:www.nuget.org)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet csharp:*)",
+      "Bash(dotnet script:*)",
+      "Bash(where:*)",
+      "Bash(dotnet run:*)",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\(''C:\\\\Users\\\\Danny\\\\.nuget\\\\packages\\\\torchsharp\\\\0.105.2\\\\lib\\\\net6.0\\\\TorchSharp.dll''\\).GetTypes\\(\\) | Where-Object { $_.Name -like ''*DataLoader*'' -or $_.Name -like ''*dataloader*'' } | ForEach-Object { $_.FullName }\")",
+      "Bash(powershell -Command \"try { [System.Reflection.Assembly]::LoadFrom\\(''C:\\\\Users\\\\Danny\\\\.nuget\\\\packages\\\\torchsharp\\\\0.105.2\\\\lib\\\\net6.0\\\\TorchSharp.dll''\\).GetTypes\\(\\) } catch [System.Reflection.ReflectionTypeLoadException] { $_.Exception.Types | Where-Object { $_ -ne $null -and $_.Name -like ''*DataLoader*'' } | ForEach-Object { $_.FullName } }\")",
+      "Bash(powershell -NoProfile -Command \"$asm = [System.Reflection.Assembly]::LoadFrom\\(''C:\\\\Users\\\\Danny\\\\.nuget\\\\packages\\\\torchsharp\\\\0.105.2\\\\lib\\\\net6.0\\\\TorchSharp.dll''\\); try { $types = $asm.GetTypes\\(\\) } catch [System.Reflection.ReflectionTypeLoadException] { $types = $_Exception.Types }; $types | Where-Object { $_-ne $null -and $_Name -like ''*DataLoader*'' } | ForEach-Object { $_FullName }\")",
+      "WebFetch(domain:api.github.com)",
+      "Bash(dotnet test:*)",
+      "Bash(dir /b /s \"C:\\\\Users\\\\Danny\\\\source\\\\repos\\\\TorchSharpNetworkReference\")"
+    ]
+  }
+}
