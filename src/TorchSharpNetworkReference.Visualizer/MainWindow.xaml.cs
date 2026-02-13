@@ -2,17 +2,20 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using TorchSharp;
+using TorchSharp.Modules;
 using TorchSharpNetworkReference.Models;
 using TorchSharpNetworkReference.Training;
 using static TorchSharp.torch;
+using static TorchSharp.torch.nn;
 using static TorchSharp.torch.utils.data;
 using static TorchSharp.torchvision;
+using static TorchSharpNetworkReference.Training.MnistTrainer;
 
 namespace TorchSharpNetworkReference.Visualizer;
 
 public partial class MainWindow : Window
 {
-    private MnistModel? _model;
+    private Module<Tensor, Tensor>? _model;
     private List<(float[] pixels, long label)> _testImages = new();
     private int _currentIndex;
 
@@ -23,31 +26,122 @@ public partial class MainWindow : Window
 
     private async void TrainButton_Click(object sender, RoutedEventArgs e)
     {
-        TrainButton.IsEnabled = false;
-        PrevButton.IsEnabled = false;
-        NextButton.IsEnabled = false;
-        StatusText.Text = "Training network (10 epochs, lr=0.05)...";
+        // Parse and validate configuration
+        var (config, errorMessage) = ParseConfiguration();
 
-        MnistTrainer.TrainingResult? result = null;
-
-        await Task.Run(() =>
+        if (config == null)
         {
-            (_model, result) = MnistTrainer.TrainAndReturn(
-                epochs: 10, batchSize: 64, learningRate: 0.05);
+            StatusText.Text = errorMessage ?? "Invalid configuration";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(200, 40, 40));
+            return;
+        }
+
+        // Validate configuration ranges
+        var validation = TrainingConfiguration.Validate(config);
+        if (!validation.IsValid)
+        {
+            StatusText.Text = $"Configuration error: {validation.ErrorMessage}";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(200, 40, 40));
+            return;
+        }
+
+        // Disable UI during training
+        SetTrainingUIEnabled(false);
+        StatusText.Foreground = new SolidColorBrush(Color.FromRgb(85, 85, 85));
+
+        TrainingResult? result = null;
+        var progress = new Progress<string>(message =>
+        {
+            Dispatcher.Invoke(() => StatusText.Text = message);
         });
 
-        AccuracyText.Text = $"Accuracy: {result!.FinalTestAccuracy:P2}";
-        StatusText.Text = "Loading test images...";
+        try
+        {
+            await Task.Run(() =>
+            {
+                (_model, result) = MnistTrainer.Train(config, progress);
+            });
 
-        await Task.Run(LoadTestImages);
+            AccuracyText.Text = $"Accuracy: {result!.FinalTestAccuracy:P2}";
+            StatusText.Text = "Loading test images...";
 
-        StatusText.Text = $"Ready -- {_testImages.Count} test images loaded.";
-        TrainButton.IsEnabled = true;
-        PrevButton.IsEnabled = true;
-        NextButton.IsEnabled = true;
+            await Task.Run(LoadTestImages);
 
-        _currentIndex = 0;
-        ShowCurrentImage();
+            StatusText.Text = $"Ready -- {_testImages.Count} test images loaded. Model: {config.GetArchitectureDescription()}";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 139, 34));
+
+            SetTrainingUIEnabled(true);
+            _currentIndex = 0;
+            ShowCurrentImage();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Training failed: {ex.Message}";
+            StatusText.Foreground = new SolidColorBrush(Color.FromRgb(200, 40, 40));
+            SetTrainingUIEnabled(true);
+        }
+    }
+
+    private void ResetButton_Click(object sender, RoutedEventArgs e)
+    {
+        ArchitectureTextBox.Text = "128,64";
+        EpochsTextBox.Text = "10";
+        BatchSizeTextBox.Text = "64";
+        LearningRateTextBox.Text = "0.05";
+        StatusText.Text = "Configuration reset to defaults.";
+        StatusText.Foreground = new SolidColorBrush(Color.FromRgb(85, 85, 85));
+    }
+
+    private (TrainingConfiguration? config, string? error) ParseConfiguration()
+    {
+        // Parse architecture
+        var architecture = TrainingConfiguration.ParseArchitecture(ArchitectureTextBox.Text);
+        if (architecture == null)
+        {
+            // Fall back to default with warning
+            StatusText.Text = "Invalid architecture format. Using default: 128,64";
+            architecture = new[] { 128, 64 };
+        }
+
+        // Parse epochs
+        if (!int.TryParse(EpochsTextBox.Text, out var epochs))
+        {
+            return (null, "Epochs must be a valid integer");
+        }
+
+        // Parse batch size
+        if (!int.TryParse(BatchSizeTextBox.Text, out var batchSize))
+        {
+            return (null, "Batch size must be a valid integer");
+        }
+
+        // Parse learning rate
+        if (!double.TryParse(LearningRateTextBox.Text, out var learningRate))
+        {
+            return (null, "Learning rate must be a valid number");
+        }
+
+        var config = new TrainingConfiguration
+        {
+            HiddenLayerSizes = architecture,
+            Epochs = epochs,
+            BatchSize = batchSize,
+            LearningRate = learningRate
+        };
+
+        return (config, null);
+    }
+
+    private void SetTrainingUIEnabled(bool enabled)
+    {
+        TrainButton.IsEnabled = enabled;
+        ResetButton.IsEnabled = enabled;
+        ArchitectureTextBox.IsEnabled = enabled;
+        EpochsTextBox.IsEnabled = enabled;
+        BatchSizeTextBox.IsEnabled = enabled;
+        LearningRateTextBox.IsEnabled = enabled;
+        PrevButton.IsEnabled = enabled && _testImages.Count > 0;
+        NextButton.IsEnabled = enabled && _testImages.Count > 0;
     }
 
     private void LoadTestImages()
@@ -59,7 +153,7 @@ public partial class MainWindow : Window
 
         foreach (var batch in loader)
         {
-            var data = batch["data"];   // [batch, 28, 28, 1] or [batch, 1, 28, 28]
+            var data = batch["data"];
             var labels = batch["label"];
             int batchSize = (int)data.shape[0];
 
