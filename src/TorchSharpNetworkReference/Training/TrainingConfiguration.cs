@@ -49,8 +49,8 @@ public record TrainingConfiguration
             for (int i = 0; i < config.HiddenLayerSizes.Length; i++)
             {
                 var size = config.HiddenLayerSizes[i];
-                if (size < 16)
-                    errors.Add($"Layer {i + 1}: Must have at least 16 neurons");
+                if (size < 2)
+                    errors.Add($"Layer {i + 1}: Must have at least 2 neurons");
                 else if (size > 1024)
                     errors.Add($"Layer {i + 1}: Cannot have more than 1024 neurons");
             }

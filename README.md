@@ -226,6 +226,114 @@ The test suite verifies:
 - **Serialization**: Round-trip JSON preserves all data
 - **Inspection**: All intermediate values are captured correctly
 
+## Test Suite
+
+The project includes comprehensive xUnit tests organized into several categories:
+
+### Test Organization
+
+Tests are tagged with categories for selective execution:
+
+```bash
+# Run only fast tests (validation, parsing, basic functionality)
+dotnet test --filter "Category=FastTests"
+
+# Run only slow tests (convergence, training)
+dotnet test --filter "Category=SlowTests"
+
+# Run all tests
+dotnet test
+```
+
+### TrainingTests
+
+Core training functionality tests:
+
+- `MnistModel_TrainsAndConverges_Above95Percent` - Verifies default model reaches 95%+
+- `MnistModel_TrainsAndConverges_Above90Percent_In2Epochs` - Quick convergence test
+
+### TopologyTests
+
+Extensive topology exploration and minimum model size determination:
+
+**Convergence Tests (Single Layer):**
+- Tests architectures from 16 to 1024 neurons
+- Verifies accuracy ranges from 75% to 94%
+
+**Convergence Tests (Multi-Layer):**
+- Two-layer: [16,16] to [1024,512]
+- Three-layer: [16,16,16] to [512,256,128]
+- Deep networks: 4-5 layer architectures
+
+**Hyperparameter Variations:**
+- Batch sizes: 1, 16, 128, 256, 512
+- Learning rates: 0.001, 0.01, 0.05, 0.1, 0.5
+
+**Minimum Model Size Tests:**
+Empirical tests to find the smallest model achieving 90%+ accuracy:
+
+```csharp
+// Single-layer candidates
+[70], [80], [90], [96], [100] neurons
+
+// Two-layer candidates (more parameter-efficient)
+[48,24], [56,28], [64,32]
+
+// Extended training for small models
+[64] with 20-25 epochs
+[70] with 20 epochs
+```
+
+**Validation Tests:**
+- Zero layers, excessive layers (6+)
+- Invalid neuron counts (<16, >1024)
+- Negative/zero values
+- Mixed valid/invalid configurations
+
+**Edge Cases:**
+- All layers at minimum [16,16,16,16,16]
+- All layers at maximum [1024,1024,1024,1024,1024]
+- Increasing sizes [32,64,128]
+- Decreasing pyramid [256,128,64,32,16]
+
+**Model Selection Tests:**
+- Verifies default [128,64] uses MnistModel
+- Verifies custom architectures use ConfigurableModel
+
+### InspectionTests
+
+Training data capture and inspection:
+
+- `CaptureIterations_Returns2Iterations_WithAllValues` - Verifies complete data capture
+- `CaptureIterations_WeightsChangeAfterUpdate` - Confirms SGD updates weights
+- `CaptureIterations_SerializesToFile` - Tests JSON persistence
+- `CaptureIterations_ManualSgdUpdate_IsCorrect` - Validates update formula
+- `CaptureIterations_RealTraining_Serializes3Iterations` - Creates reference data
+
+### SerializationTests
+
+JSON serialization validation:
+
+- `RoundTrip_PreservesAllData` - Complete data integrity
+- `RoundTrip_FileBasedSerialize` - File I/O testing
+- `RoundTrip_NullGradients_HandledCorrectly` - Edge case handling
+
+### Running Specific Test Categories
+
+```bash
+# Run topology convergence tests only
+dotnet test --filter "SingleLayerTopology_Converges"
+
+# Run minimum model size determination
+dotnet test --filter "SmallSingleLayer_Models_ConvergenceTest"
+
+# Run parameter efficiency comparison
+dotnet test --filter "MinimumModelComparison_SingleVersusTwoLayer"
+
+# Run validation tests only
+dotnet test --filter "InvalidTopology_FailsValidation"
+```
+
 ## Dependencies
 
 - [TorchSharp](https://github.com/dotnet/TorchSharp) 0.105.2 - PyTorch bindings for .NET
